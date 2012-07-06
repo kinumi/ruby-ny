@@ -1,14 +1,25 @@
 #coding: utf-8
 
 require File.dirname(__FILE__) + "/../lib/nycommands.rb"
-require File.dirname(__FILE__) + "/lib/testcommands.rb"
 require "rubygems"
-require "test/unit"
 require "shoulda"
 
 class TestNyCommand < Test::Unit::TestCase
   #========================================================================================================================================
   context "数値のみコマンド" do
+    class T01 < NyCommand
+      def no
+        0xff
+      end
+      def structure
+        [
+          [:a, {:type=>:int8}],
+          [:b, {:type=>:int16}],
+          [:c, {:type=>:int32}],
+        ]
+      end
+    end
+    
     setup do
       @cmdcls = T01
     end
@@ -116,6 +127,18 @@ class TestNyCommand < Test::Unit::TestCase
   
   #========================================================================================================================================
   context "固定長文字列入りコマンド" do
+    class T02 < NyCommand
+      def no
+        0xfe
+      end
+      def structure
+        [
+          [:a, {:type=>:int8}],
+          [:b, {:type=>:string, :size=>5}],
+        ]
+      end
+    end
+
     setup do
       @cmdcls = T02
     end
@@ -257,6 +280,18 @@ class TestNyCommand < Test::Unit::TestCase
 
   #========================================================================================================================================
   context "可変長文字列入りコマンド" do
+    class T03 < NyCommand
+      def no
+        0xfd
+      end
+      def structure
+        [
+          [:a, {:type=>:int8}],
+          [:b, {:type=>:string, :size=>:a}],
+        ]
+      end
+    end
+
     setup do
       @cmdcls = T03
     end
@@ -398,6 +433,17 @@ class TestNyCommand < Test::Unit::TestCase
 
   #========================================================================================================================================
   context "IPアドレス入りコマンド" do
+    class T04 < NyCommand
+      def no
+        0xfc
+      end
+      def structure
+        [
+          [:ipaddr, {:type=>:ipaddr}],
+        ]
+      end
+    end
+
     setup do
       @cmdcls = T04
     end
@@ -438,6 +484,27 @@ class TestNyCommand < Test::Unit::TestCase
 
   #========================================================================================================================================
   context "サブコマンド入りコマンド" do
+    class T05 < NyCommand
+      def no
+        0xfb
+      end
+      class S01 < NyCommand
+        def structure
+          [
+            [:a, {:type=>:int8}],
+            [:b, {:type=>:int8}],
+            [:c, {:type=>:int8}],
+            [:d, {:type=>:int8}],
+          ]
+        end
+      end
+      def structure
+        [
+          [:a, {:type=>S01}],
+        ]
+      end
+    end
+
     setup do
       @cmdcls = T05
     end

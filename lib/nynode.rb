@@ -1,79 +1,117 @@
 #coding: utf-8
 require File.dirname(__FILE__) + "/logger"
 require File.dirname(__FILE__) + "/consts"
-require "socket"
+require File.dirname(__FILE__) + "/nycommandprocessor"
 require "rubygems"
+require "socket"
 require "rc4"
+require "ipaddr"
 
-#
-# Ny ノード
-#
+#======================================================================
+# Nyノード
 class NyNode
-  attr_accessor :host
-  attr_accessor :port
+  attr_reader :enc_addr
+  attr_reader :host
+  attr_reader :port
   
-  def decode(src)
-    dat = src[1..-1].each_char.each_slice(2).map(&:join).map(&:hex).pack("C*")
-    key_hdr = dat[0]
-    enc_addr = dat[1..-1]
-    rc4 = RC4.new(key_hdr.chr + NyKeys::NODE_KEY)
-    addr = rc4.decrypt(enc_addr)
-    @host, @port = addr.split(":")
-    @port = @port.to_i
+  def initialize(arg={})
+    if arg[:enc_addr]
+      @host, @port = decode(arg[:enc_addr])
+      @enc_addr = arg[:enc_addr]
+    elsif arg[:host] && arg[:port]
+      @host, @port = arg[:host], arg[:port]
+      @enc_addr = encode(arg[:host], arg[:port])
+    else
+      raise "Parameter [:enc_addr] or [:host, :port] must be specified."
+    end
+    raise "invalid address" unless @host.kind_of?(String)
+    raise "invalid address" unless @host.split(".").size == 4
+    @host.split(".").each do |i|
+      raise "invalid address" unless i =~ /^[0-9]+$/
+    end
   end
   
-  def encode
-    addr = "%s:%d" % [@host, @port]
-    
+  #暗号化アドレスをIPアドレスとポート番号にデコード
+  def decode(enc_addr)
+    enc_body = enc_addr[1..-1].each_char.each_slice(2).map(&:join).map(&:hex).pack("C*")
+    rc4 = RC4.new(enc_body[0].chr + NyKeys::NODE_KEY)
+    addr = rc4.decrypt(enc_body[1..-1])
+    host, port = addr.split(":")
+    return host, port.to_i
+  end
+  
+  #IPアドレスとポート番号を暗号化アドレスにエンコード
+  def encode(host, port)
+    addr = "%s:%d" % [host, port]
+    sum = calc_sum(addr)
+    rc4 = RC4.new(sum.chr + NyKeys::NODE_KEY)
+    return ("@%02x%s" % [sum, rc4.encrypt(addr).unpack("C*").map{|v|"%02x"%v}.join]).downcase
+  end
+  
+  #暗号化アドレスのチェックサム計算
+  def calc_sum(addr)
     sum = 0
     addr.unpack("C*").each do |v|
       sum += v
     end
-    sum &= 0xff
-    key = sum.chr + NyKeys::NODE_KEY
-    
-    rc4 = RC4.new(key)
-    return ("@%02x%s" % [sum, rc4.encrypt(addr).unpack("C*").map{|v|"%02x"%v}]).downcase
+    return sum & 0xff
   end
   
+  #ノードに接続する
   def connect
-    return TCPSocket.new(@host, @port)
-  end
-  
-  def valid?
-    con = nil
-    data11b = nil
-    begin
-      timeout(5) do
-        logger.debug "connecting to #{@host}:#{@port} (#{encode})"
-        con = connect
-        data11b = con.recv(11, Socket::MSG_WAITALL)
-      end
-      logger.debug " -> ok!"
-      if decode_hello(data11b).unpack("C*") == [0x01, 0x00, 0x00, 0x00, 0x61]
-        return true
-      else
-        logger.debug " -> but... not ny..."
-        return false
-      end
-    rescue Timeout::Error
-      logger.debug " -> timeout..."
-      return false
-    rescue => e
-      logger.debug " -> error... #{e}"
-      return false
-    ensure
-      con.close if con
+    @sock = TCPSocket.new(@host, @port)
+    @processor = NyCommandProcessor.new(@sock)
+    @processor.on_command_received(0x00) do |cmdobj|
+      cmdobj.debug
     end
+    @processor.on_command_received(0x01) do |cmdobj|
+      cmdobj.debug
+    end
+    @processor.on_command_received(0x02) do |cmdobj|
+      cmdobj.debug
+    end
+    @processor.on_command_received(0x03) do |cmdobj|
+      cmdobj.debug
+    end
+    @processor.on_command_received(0x04) do |cmdobj|
+      logger.debug "command 0x04"
+      logger.debug cmdobj.ipaddr
+    end
+    @processor.on_command_received(0x0d) do |cmdobj|
+      logger.debug "command 0x0d"
+      logger.debug cmdobj.keys.size
+    end
+    @processor.on_closed do
+      puts "closed... #{id}"
+    end
+    @processor.recv_auth
+    @processor.send_auth
+    Thread.new{ @processor.command_loop }
   end
   
-  def decode_hello(data11b)
-    recvdat = data11b.unpack("C*")
-    dat01 = recvdat.shift(2)
-    dat02 = recvdat.shift(4)
-    dat03 = recvdat.shift(5)
-    key = dat02.pack("C*")
-    rc4 = RC4.new(key)
-    return rc4.decrypt(dat03.pack("C*"))
+  #着信時の処理
+  def accept(sock)
+    @sock = sock
+    @processor = NyCommandProcessor.new(sock)
+    @processor.on_command_received(0x00) do |cmdobj|
+      cmdobj.debug
+    end
+    @processor.on_command_received(0x01) do |cmdobj|
+      cmdobj.debug
+    end
+    @processor.on_command_received(0x02) do |cmdobj|
+      if cmdobj.bad_port0_flag != 1
+        @processor.send_cmd1f
+      end
+    end
+    @processor.on_command_received(0x03) do |cmdobj|
+      #cmdobj.debug
+    end
+    @processor.on_closed do
+      puts "accepted connection closed... #{id}"
+    end
+    @processor.recv_auth
+    @processor.send_auth
+    Thread.new{ @processor.command_loop }
   end
 end
