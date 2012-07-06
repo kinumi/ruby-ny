@@ -3,8 +3,9 @@ require File.dirname(__FILE__) + "/logger"
 require "kconv"
 
 #======================================================================
-# Ny プロトコルコマンド ベースクラス
+# Nyプロトコルコマンド
 class NyCommand
+  #コマンドで使用するデータ型のサイズテーブル
   SIZETBL = {
     :int8  => 1,
     :int16 => 2,
@@ -12,19 +13,20 @@ class NyCommand
     :float => 4,
     :ipaddr => 4,
   }
-  
+
   #コマンド番号
-  #サブクラスで要塞定義
+  #サブクラスで再定義
   def no
     -1
   end
+
   #コマンドデータ構造
-  #サブクラスで要塞定義
+  #サブクラスで再定義
   def structure
     [
     ]
   end
-  
+
   #コンストラクタ
   def initialize(pyld=nil)
     if pyld
@@ -33,19 +35,23 @@ class NyCommand
       create_structure
     end
   end
-  # サイズ
+
+  # コマンドのサイズ
   def size
     to_byte.size
   end
+
   #コマンドのパケット化
+  #{CMDSZ:int32}{CMDNO:int8}{CMDPYLD:CMDSZ-1}
   def to_packet(encrypter=nil)
     unless encrypter
       packet = [size+1, no].pack("VC") + to_byte
     else
-      packet = encrypter.encrypt([size+1].pack("V")) + encrypter.encrypt([no].pack("C") + to_byte)
+      packet = encrypter.encrypt(to_packet)
     end
   end
-  #コマンドのバイトデータ化
+
+  #コマンドペイロードのバイトデータ化
   def to_byte
     pyldary = []
     structure.each do |i|
@@ -59,6 +65,7 @@ class NyCommand
       dats.each do |dat|
         # サブコマンド処理
         if type.is_a?(Class) && type.ancestors.include?(NyCommand)
+          dat = type.new unless dat
           pyldary += dat.to_byte.unpack("C*")
         # 通常データ処理
         else
@@ -94,37 +101,36 @@ class NyCommand
     end
     return pyldary.pack("C*")
   end
+
   #デバッグプリント
   def debug
+    
     logger.debug "COMMAND #{"%02x" % no}"
     structure.each do |i|
-      name = i[0]
-      type = i[1][:type]
-      size = i[1][:size]
-      dats = instance_variable_get("@#{name.to_s}")
+      dats = get_value(i)
       unless dats.kind_of?(Array)
         dats = [dats]
       end
       dats.each do |dat|
-        # サブコマンド処理
-        if type.is_a?(Class) && type.ancestors.include?(NyCommand)
+        # サブコマンド
+        if i[1][:type].is_a?(Class) && i[1][:type].ancestors.include?(NyCommand)
           dat.debug
-        # 通常データ処理
+        # 通常データ
         else
-          case type
+          case i[1][:type]
             when :int8
-              logger.debug "  #{name} -> #{dat}"
+              logger.debug "  #{i[0]} -> #{dat}"
             when :int16
-              logger.debug "  #{name} -> #{dat}"
+              logger.debug "  #{i[0]} -> #{dat}"
             when :int32
-              logger.debug "  #{name} -> #{dat}"
+              logger.debug "  #{i[0]} -> #{dat}"
             when :float
-              logger.debug "  #{name} -> #{dat}"
+              logger.debug "  #{i[0]} -> #{dat}"
             when :string
-              logger.debug "  #{name}(bin) -> #{dat.to_dbg}"
-              logger.debug "  #{name}(str) -> #{dat.toutf8}"
+              logger.debug "  #{i[0]}(bin) -> #{dat.to_dbg}"
+              logger.debug "  #{i[0]}(str) -> #{dat.toutf8}"
             when :ipaddr
-              logger.debug "  #{name}(str) -> #{dat.toutf8}"
+              logger.debug "  #{i[0]}(str) -> #{dat.toutf8}"
           end
         end
       end
@@ -132,6 +138,16 @@ class NyCommand
   end
 
   private
+  
+  #構成要素に対応するインスタンス変数を読む
+  def get_value(structure_elem)
+    instance_variable_get("@#{structure_elem[0].to_s}")
+  end
+  #構成要素に対応するインスタンス変数に書く
+  def set_value(structure_elem, value)
+    instance_variable_set("@#{structure_elem[0].to_s}", value)
+  end
+  
   #バイトデータの解析
   def parse(pyld)
     pyldary = pyld.dup.unpack("C*")
