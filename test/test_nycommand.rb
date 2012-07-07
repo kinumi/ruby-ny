@@ -1,6 +1,6 @@
 #coding: utf-8
 
-require File.dirname(__FILE__) + "/../lib/nycommands.rb"
+require File.dirname(__FILE__) + "/../lib/protocol/nycommands.rb"
 require "rubygems"
 require "shoulda"
 

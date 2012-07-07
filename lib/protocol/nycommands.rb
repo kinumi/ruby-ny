@@ -1,5 +1,5 @@
 #coding: utf-8
-require File.dirname(__FILE__) + "/logger"
+require File.dirname(__FILE__) + "/../common/logger"
 require File.dirname(__FILE__) + "/nycommand"
 
 #======================================================================

@@ -1,5 +1,5 @@
 #coding: utf-8
-require File.dirname(__FILE__) + "/logger"
+require File.dirname(__FILE__) + "/../common/logger"
 require "kconv"
 
 #======================================================================
@@ -104,7 +104,6 @@ class NyCommand
 
   #デバッグプリント
   def debug
-    
     logger.debug "COMMAND #{"%02x" % no}"
     structure.each do |i|
       dats = get_value(i)
@@ -127,10 +126,9 @@ class NyCommand
             when :float
               logger.debug "  #{i[0]} -> #{dat}"
             when :string
-              logger.debug "  #{i[0]}(bin) -> #{dat.to_dbg}"
               logger.debug "  #{i[0]}(str) -> #{dat.toutf8}"
             when :ipaddr
-              logger.debug "  #{i[0]}(str) -> #{dat.toutf8}"
+              logger.debug "  #{i[0]}(ipaddr) -> #{dat.toutf8}"
           end
         end
       end
@@ -153,12 +151,10 @@ class NyCommand
     pyldary = pyld.dup.unpack("C*")
     structure.each do |i|
       repeat = decide_repeat(i[1][:repeat])
-      name = i[0]
-      type = i[1][:type]
-      size = i[1][:size]
+      name = i[0]; type = i[1][:type]; size = i[1][:size]
       # リピート処理
       dats = []
-      repeat.times do |i|
+      repeat.times do
         # サブコマンド処理
         if type.is_a?(Class) && type.ancestors.include?(NyCommand)
           dat = type.new(pyldary.pack("C*"))
@@ -186,13 +182,14 @@ class NyCommand
         end
       end
       if repeat == 1
-        instance_variable_set("@#{name.to_s}", dats[0])
+        set_value(i, dats[0])
       else
-        instance_variable_set("@#{name.to_s}", dats)
+        set_value(i, dats)
       end
       self.class.send(:attr_accessor, name)
     end
   end
+  
   #コマンドデータ構造からインスタンス変数、アクセサのみ作成
   def create_structure
     structure.each do |i|
@@ -201,6 +198,7 @@ class NyCommand
       self.class.send(:attr_accessor, name)
     end
   end
+  
   #リピート数の決定
   def decide_repeat(repeat)
     if repeat.kind_of?(Symbol)
@@ -210,6 +208,7 @@ class NyCommand
     end
     return repeat
   end
+  
   #サイズの決定
   def decide_size(size, type)
     if size.kind_of?(Symbol)

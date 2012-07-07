@@ -1,6 +1,6 @@
 #coding: utf-8
-require File.dirname(__FILE__) + "/logger"
-require File.dirname(__FILE__) + "/consts"
+require File.dirname(__FILE__) + "/common/logger"
+require File.dirname(__FILE__) + "/common/consts"
 require File.dirname(__FILE__) + "/nycommandprocessor"
 require "rubygems"
 require "socket"
@@ -62,10 +62,12 @@ class NyNode
     @sock = TCPSocket.new(@host, @port)
     @processor = NyCommandProcessor.new(@sock)
     @processor.on_command_received(0x00) do |cmdobj|
-      cmdobj.debug
+      unless cmdobj.str == "Winny Ver2.0b1  "
+        @sock.close
+      end
     end
     @processor.on_command_received(0x01) do |cmdobj|
-      cmdobj.debug
+      
     end
     @processor.on_command_received(0x02) do |cmdobj|
       cmdobj.debug
@@ -81,12 +83,13 @@ class NyNode
       logger.debug "command 0x0d"
       logger.debug cmdobj.keys.size
     end
-    @processor.on_closed do
-      puts "closed... #{id}"
+    @processor.on_closed do |e|
+      puts "closed... #{object_id} #{eF}"
     end
     @processor.recv_auth
     @processor.send_auth
     Thread.new{ @processor.command_loop }
+    Thread.new{ @processor.request_defusion_loop }
   end
   
   #着信時の処理
@@ -100,18 +103,20 @@ class NyNode
       cmdobj.debug
     end
     @processor.on_command_received(0x02) do |cmdobj|
+      cmdobj.debug
       if cmdobj.bad_port0_flag != 1
-        @processor.send_cmd1f
+#        @processor.send_cmd1f
       end
     end
     @processor.on_command_received(0x03) do |cmdobj|
       #cmdobj.debug
     end
-    @processor.on_closed do
-      puts "accepted connection closed... #{id}"
+    @processor.on_closed do |e|
+      puts "accepted connection closed... #{object_id} #{e}"
     end
     @processor.recv_auth
     @processor.send_auth
     Thread.new{ @processor.command_loop }
+    Thread.new{ @processor.request_defusion_loop }
   end
 end
