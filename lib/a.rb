@@ -2,8 +2,8 @@
 #coding: utf-8
 
 require "rubygems"
-require File.dirname(__FILE__) + "/logger"
-require File.dirname(__FILE__) + "/config"
+require File.dirname(__FILE__) + "/common/logger"
+require File.dirname(__FILE__) + "/common/config"
 require File.dirname(__FILE__) + "/models"
 require File.dirname(__FILE__) + "/nynode"
 require "socket"

@@ -1,5 +1,7 @@
 #coding: utf-8
-require File.dirname(__FILE__) + "/../common/logger"
+$LOAD_PATH << File.dirname(__FILE__) + ".."
+
+require "./common/logger"
 require "kconv"
 
 #======================================================================

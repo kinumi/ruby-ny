@@ -1,6 +1,8 @@
 #coding: utf-8
-require File.dirname(__FILE__) + "/../common/logger"
-require File.dirname(__FILE__) + "/nycommand"
+$LOAD_PATH << File.dirname(__FILE__) + ".."
+
+require "./common/logger"
+require "./protocol/nycommand"
 
 #======================================================================
 # バージョン限定切断要求
