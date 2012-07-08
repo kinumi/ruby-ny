@@ -24,7 +24,7 @@ class NodeMngTask < Task
   def on_manage_uplink
     if @uplink_connections.size < $config[:uplink_max]
       logger.debug nodes = @uplink_connections.map{|v| v.node.enc_addr }
-      logger.debug dbnode = DBNodes.exclude(:enc_addr=>nodes).order(:pri.desc).limit(1).first
+      logger.debug dbnode = DBNodes.order{[:pri.desc, random{}]}.exclude(:enc_addr=>nodes).limit(1).first
       if dbnode
         begin
           node = NyNode.new(:enc_addr=>dbnode.enc_addr)
