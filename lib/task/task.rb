@@ -1,5 +1,6 @@
 #coding: utf-8
-$LOAD_PATH << File.dirname(__FILE__) + ".."
+$LOAD_PATH << File.dirname(__FILE__) + "/.."
+
 
 require "./common/logger"
 require "./common/config"
@@ -30,6 +31,8 @@ class Task
           break
         end
       end
+    rescue => e
+      logger.error e
     ensure
       @@mutex.synchronize do
         @@tasks.delete self

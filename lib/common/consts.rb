@@ -1,5 +1,6 @@
 #coding: utf-8
-$LOAD_PATH << File.dirname(__FILE__) + ".."
+$LOAD_PATH << File.dirname(__FILE__) + "/.."
+
 
 #======================================================================
 # 固定RC4キー

@@ -13,16 +13,19 @@
 ActiveRecord::Schema.define(:version => 20120630005545) do
 
   create_table "nodes", :force => true do |t|
-    t.string   "node"
+    t.string   "enc_addr"
     t.string   "host"
     t.integer  "port"
-    t.datetime "first_connected_at"
-    t.datetime "last_connected_at"
-    t.boolean  "last_status"
-    t.datetime "created_at",         :null => false
-    t.datetime "updated_at",         :null => false
+    t.integer  "speed"
+    t.string   "cluster1"
+    t.string   "cluster2"
+    t.string   "cluster3"
+    t.integer  "pri"
+    t.datetime "connected_at"
+    t.datetime "created_at",   :null => false
+    t.datetime "updated_at",   :null => false
   end
 
-  add_index "nodes", ["node"], :name => "index_nodes_on_node", :unique => true
+  add_index "nodes", ["enc_addr"], :name => "index_nodes_on_enc_addr", :unique => true
 
 end

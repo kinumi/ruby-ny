@@ -1,16 +1,24 @@
 #coding: utf-8
-$LOAD_PATH << File.dirname(__FILE__) + ".."
+$LOAD_PATH << File.dirname(__FILE__) + "/.."
+
 
 require "./common/logger"
 require "./common/config"
 require "./common/consts"
 require "./protocol/nycommands"
+require "./protocol/nynode"
 require "rubygems"
 require "rc4"
 
 #======================================================================
 # Nyコネクション
 class NyConnection
+  attr_reader :node
+  attr_reader :cmd00
+  attr_reader :cmd01
+  attr_reader :cmd02
+  attr_reader :cmd03
+  
   def initialize(sock, link_type)
     @sock = sock
     @link_type = link_type
@@ -19,6 +27,11 @@ class NyConnection
     @key_snd1 = [rand(256), rand(256), rand(256), rand(256)].pack("C*")
     @rc4_snd1 = RC4.new(prepare_key(@key_snd1))
     @callback_tbl = {}
+    @node = nil
+    @cmd00 = nil
+    @cmd01 = nil
+    @cmd02 = nil
+    @cmd03 = nil
   end
   
   #クローズ時のコールバックメソッドを登録する
@@ -46,7 +59,7 @@ class NyConnection
         cmd     = @rc4_rcv1.decrypt(@sock.recv(cmdsz, Socket::MSG_WAITALL).tap{|v|chk(v)})
         cmdno   = cmd.bytes.first
         if cmdno == 0x00 && @callback_tbl[cmdno]
-          cmdobj = NyCommand00.new(@rc4_rcv_proto.decrypt(cmd[1..-1]))
+          @cmd00 = cmdobj = NyCommand00.new(@rc4_rcv_proto.decrypt(cmd[1..-1]))
           @callback_tbl[cmdno].call(cmdobj)
         end
       end
@@ -58,9 +71,11 @@ class NyConnection
         cmdsz   = @rc4_rcv2.decrypt(@sock.recv(4, Socket::MSG_WAITALL).tap{|v|chk(v)}).unpack("V*").first
         cmd     = @rc4_rcv2.decrypt(@sock.recv(cmdsz, Socket::MSG_WAITALL).tap{|v|chk(v)})
         cmdno   = cmd.bytes.first
-        if cmdno == 0x01 && @callback_tbl[cmdno]
-          cmdobj = NyCommand01.new(cmd[1..-1])
-          @callback_tbl[cmdno].call(cmdobj)
+        if cmdno == 0x01
+          @cmd01 = cmdobj = NyCommand01.new(cmd[1..-1])
+          if @callback_tbl[cmdno]
+            @callback_tbl[cmdno].call(cmdobj)
+          end
         end
       end
       # コマンド2
@@ -69,9 +84,11 @@ class NyConnection
         cmd     = @rc4_rcv2.decrypt(@sock.recv(cmdsz, Socket::MSG_WAITALL).tap{|v|chk(v)})
         cmdno   = cmd.bytes.first
         cmdpyld = cmd[1..-1]
-        if cmdno == 0x02 && @callback_tbl[cmdno]
-          cmdobj = NyCommand02.new(cmd[1..-1])
-          @callback_tbl[cmdno].call(cmdobj)
+        if cmdno == 0x02
+          @cmd02 = cmdobj = NyCommand02.new(cmd[1..-1])
+          if @callback_tbl[cmdno]
+            @callback_tbl[cmdno].call(cmdobj)
+          end
         end
       end
       #コマンド3
@@ -80,9 +97,15 @@ class NyConnection
         cmd     = @rc4_rcv2.decrypt(@sock.recv(cmdsz, Socket::MSG_WAITALL).tap{|v|chk(v)})
         cmdno   = cmd.bytes.first
         cmdpyld = cmd[1..-1]
-        if cmdno == 0x03 && @callback_tbl[cmdno]
-          cmdobj = NyCommand03.new(cmd[1..-1])
-          @callback_tbl[cmdno].call(cmdobj)
+        if cmdno == 0x03
+          @cmd03 = cmdobj = NyCommand03.new(cmd[1..-1])
+          begin
+            @node = NyNode.new(:host=>@sock.peeraddr[3], :port=>cmdobj.port)
+          rescue
+          end
+          if @callback_tbl[cmdno]
+            @callback_tbl[cmdno].call(cmdobj)
+          end
         end
       end
     rescue => e
@@ -155,7 +178,7 @@ class NyConnection
         cmdno   = cmd.bytes.first
         cmdpyld = cmd[1..-1]
         if @callback_tbl[cmdno]
-          class_name = "NyCommand%02x" % cmdno[0]
+          class_name = "NyCommand%02x" % cmdno
           if Object.constants.include?(class_name)
             cmdobj = Object.const_get(class_name).new(cmdpyld)
             @callback_tbl[cmdno].call(cmdobj)

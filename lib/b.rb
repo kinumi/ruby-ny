@@ -1,10 +1,10 @@
 #!ruby -Ku
 #coding: utf-8
-$LOAD_PATH << File.dirname(__FILE__)
-require "./task/maintask"
-require "./task/cltask"
-require "./task/svtask"
-require "./task/nodemngtask"
+p $LOAD_PATH << File.dirname(__FILE__)
+require "task/maintask"
+require "task/cltask"
+require "task/svtask"
+require "task/nodemngtask"
 
 require "rubygems"
 require "socket"

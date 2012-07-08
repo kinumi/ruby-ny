@@ -1,15 +1,18 @@
 class CreateNodes < ActiveRecord::Migration
   def self.up
     create_table :nodes do |t|
-      t.string :node
+      t.string :enc_addr
       t.string :host
       t.integer :port
-      t.datetime :first_connected_at
-      t.datetime :last_connected_at
-      t.boolean :last_status
+      t.integer :speed
+      t.string :cluster1
+      t.string :cluster2
+      t.string :cluster3
+      t.integer :pri
+      t.datetime :connected_at
       t.timestamps
     end
-    add_index :nodes, :node, :unique => true
+    add_index :nodes, :enc_addr, :unique => true
   end
 
   def self.down

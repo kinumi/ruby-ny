@@ -1,6 +1,7 @@
 #coding: utf-8
+$LOAD_PATH << File.dirname(__FILE__) + "/../lib"
 
-require File.dirname(__FILE__) + "/../lib/protocol/nycommands.rb"
+require "./protocol/nycommands"
 require "rubygems"
 require "shoulda"
 

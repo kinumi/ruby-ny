@@ -1,6 +1,7 @@
 #coding: utf-8
+$LOAD_PATH << File.dirname(__FILE__) + "/../lib"
 
-require File.dirname(__FILE__) + "/../lib/nynode.rb"
+require "./protocol/nynode"
 require "rubygems"
 require "shoulda"
 
